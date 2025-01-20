@@ -60,7 +60,7 @@ fn monitor_notification_callback(notification: MonitorNotification) {
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    println!("openfusionmap-rs v{}", env!("CARGO_PKG_VERSION"));
+    println!("OpenFusionMap-rs v{}", env!("CARGO_PKG_VERSION"));
     let args = Cli::parse();
 
     println!("Connecting to monitor at {}", args.monitor_addr);
