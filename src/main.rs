@@ -84,7 +84,6 @@ async fn main() -> Result<(), String> {
 }
 
 async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
-    println!("WebSocket connection requested");
     ws.on_upgrade(handle_socket)
 }
 
@@ -97,8 +96,6 @@ async fn handle_socket(mut socket: WebSocket) {
     {
         return;
     }
-
-    println!("Client connected");
 
     let mut last_connected = true;
     loop {
@@ -126,6 +123,4 @@ async fn handle_socket(mut socket: WebSocket) {
         }
         tokio::time::sleep(Duration::from_millis(1000)).await;
     }
-
-    println!("Client disconnected");
 }
