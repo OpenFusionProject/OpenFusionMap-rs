@@ -31,17 +31,17 @@ struct Cli {
 }
 
 static LATEST_UPDATE: LazyLock<RwLock<Option<MonitorUpdate>>> = LazyLock::new(|| RwLock::new(None));
-static CONNECTED: AtomicBool = AtomicBool::new(true);
+static MONITOR_CONNECTED: AtomicBool = AtomicBool::new(true);
 
 fn monitor_notification_callback(notification: MonitorNotification) {
     match notification {
         MonitorNotification::Connected => {
             println!("Connected to monitor");
-            CONNECTED.store(true, Ordering::Relaxed);
+            MONITOR_CONNECTED.store(true, Ordering::Relaxed);
         }
         MonitorNotification::Disconnected => {
             println!("Disconnected from monitor");
-            CONNECTED.store(false, Ordering::Relaxed);
+            MONITOR_CONNECTED.store(false, Ordering::Relaxed);
         }
         MonitorNotification::Updated(update) => {
             // Filter out all events except player events
@@ -100,7 +100,7 @@ async fn handle_socket(mut socket: WebSocket) {
     let mut last_connected = true;
     loop {
         let latest_update = LATEST_UPDATE.read().unwrap().clone();
-        let currently_connected = CONNECTED.load(Ordering::Relaxed);
+        let currently_connected = MONITOR_CONNECTED.load(Ordering::Relaxed);
         let msg = {
             if last_connected && !currently_connected {
                 last_connected = false;
