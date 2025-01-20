@@ -13,18 +13,36 @@ use axum::{
     response::IntoResponse,
     routing, Router,
 };
+use clap::Parser;
 use ffmonitor::{Event, Monitor, MonitorNotification, MonitorUpdate};
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
+
+#[derive(Parser, Debug)]
+#[clap(author, about, long_about = None)]
+struct Cli {
+    /// The address to bind the HTTP server to.
+    #[clap(short, long, default_value = "127.0.0.1:8080")]
+    bind_addr: String,
+
+    /// The address of the OpenFusion monitor to connect to.
+    #[clap(short, long, default_value = "127.0.0.1:8003")]
+    monitor_addr: String,
+}
 
 static LATEST_UPDATE: LazyLock<RwLock<Option<MonitorUpdate>>> = LazyLock::new(|| RwLock::new(None));
 static CONNECTED: AtomicBool = AtomicBool::new(true);
 
 fn monitor_notification_callback(notification: MonitorNotification) {
-    println!("Monitor: {:?}", notification);
     match notification {
-        MonitorNotification::Connected => CONNECTED.store(true, Ordering::Relaxed),
-        MonitorNotification::Disconnected => CONNECTED.store(false, Ordering::Relaxed),
+        MonitorNotification::Connected => {
+            println!("Connected to monitor");
+            CONNECTED.store(true, Ordering::Relaxed);
+        }
+        MonitorNotification::Disconnected => {
+            println!("Disconnected from monitor");
+            CONNECTED.store(false, Ordering::Relaxed);
+        }
         MonitorNotification::Updated(update) => {
             // Filter out all events except player events
             let mut filtered_update = MonitorUpdate::default();
@@ -41,20 +59,28 @@ fn monitor_notification_callback(notification: MonitorNotification) {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), String> {
+    println!("openfusionmap-rs v{}", env!("CARGO_PKG_VERSION"));
+    let args = Cli::parse();
+
+    println!("Connecting to monitor at {}", args.monitor_addr);
     let _monitor =
-        Monitor::new_with_callback("127.0.0.1:8003", Box::new(monitor_notification_callback))
-            .unwrap();
+        Monitor::new_with_callback(&args.monitor_addr, Box::new(monitor_notification_callback))
+            .map_err(|e| format!("Failed to start ffmonitor: {}", e))?;
 
     let client_dir = PathBuf::from("client");
     let app = Router::new()
         .fallback_service(ServeDir::new(client_dir).append_index_html_on_directories(true))
         .route("/ws", routing::any(ws_handler));
 
-    let http_addr = "127.0.0.1:8080";
-    let listener = TcpListener::bind(http_addr).await.unwrap();
+    let http_addr = args.bind_addr;
+    let listener = TcpListener::bind(&http_addr)
+        .await
+        .map_err(|e| format!("Failed to bind to {}: {}", http_addr, e))?;
+
     println!("Serving at http://{}", http_addr);
     axum::serve(listener, app).await.unwrap();
+    Ok(())
 }
 
 async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
@@ -93,8 +119,8 @@ async fn handle_socket(mut socket: WebSocket) {
         };
 
         if let Some(msg) = msg {
-            println!("Sending: {}", msg);
             if socket.send(Message::Text(msg.into())).await.is_err() {
+                // Client disconnected
                 break;
             }
         }

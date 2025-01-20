@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.8.1", features = ["ws"] }
+clap = { version = "4.5.26", features = ["derive"] }
 ffmonitor = { git = "https://github.com/OpenFusionProject/ffmonitor.git", tag = "v2.2.0" }
 tokio = { version = "1.43.0", features = ["full"] }
 tokio-tungstenite = "0.26.0"
