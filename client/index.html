@@ -463,7 +463,11 @@
 					
 					document.getElementById("main").style.cursor = "default";
 
-					var name = tokens[3] + " " + tokens[4] + (tokens.length > 5 ? (" " + tokens[5]) : "");
+					var name = "";
+					for(var i = 3; i < tokens.length; i++) {
+						name += tokens[i] + " ";
+					}
+					name = name.trim();
 					focused = name;
 					var metrics = ctx.measureText(name);
 					var textWidth = metrics.width + padding;
